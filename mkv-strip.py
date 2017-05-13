@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+# vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
+
 from collections import OrderedDict
 from hashlib import md5
 from io import StringIO
@@ -49,7 +51,7 @@ SUBTITLE_RE = re.compile(r"Track ID (\d+): subtitles .*language:([a-z]{3})")
 
 
 def _get_file_list(root=None):
-    logger.critical('Processing {}'.format(root))
+    logger.critical(f'Processing {root}')
     dir_contents = os.listdir(root)
     paths = [f for f in dir_contents 
                 if isfile(join(root, f)) and f.endswith('.mkv')]
@@ -57,20 +59,20 @@ def _get_file_list(root=None):
 
 
 def _mkvmerge_identify(root=None, filename=None):
-    logger.critical('[{}] Identifying'.format(filename))
+    logger.critical(f'[{filename}] Identifying')
     cmd = [MKVMERGE, "--identify-verbose", join(root, filename)]
     mkvmerge = subprocess.Popen(
         cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = mkvmerge.communicate()
     if mkvmerge.returncode != 0:
         logger.critical(
-            '[{}] mkvmerge failed to identify the file'.format(filename))
+            f'[{filename}] mkvmerge failed to identify the file')
         raise Exception(stdout.decode('utf-8'))
     return stdout.decode('utf-8')
 
 
 def _extract_tracks(mkvmerge_output=None, filename=None):
-    logger.critical('[{}] Extracting tracks'.format(filename))
+    logger.critical(f'[{filename}] Extracting tracks')
     audio = []
     subtitle = []
 
@@ -83,14 +85,15 @@ def _extract_tracks(mkvmerge_output=None, filename=None):
             if m:
                 subtitle.append(m.groups())
     logger.critical(
-        '[{}] Found {} audio and {} subtitle tracks'.format(
-            filename, len(audio), len(subtitle)))
+        f'[{filename}] Found {len(audio)} audio and '
+        f'{len(subtitle)} subtitle tracks'
+    )
     return audio, subtitle
 
 
 def _list_tracks(file_tracks=None):
     for key, rec in file_tracks.items():
-        print('{}'.format(rec.filename))
+        print('f{rec.filename}')
         print(' Audio tracks')
         if rec.audio:
             for t in rec.audio:
@@ -105,7 +108,8 @@ def _audio_check(file_tracks=None):
     for key, rec in file_tracks.items():
         if len(rec.audio) < 2:
             logger.critical(
-                '[{}] At least 1 audio track required'.format(rec.filename))
+                f'[{rec.filename}] At least 1 audio track required'
+            )
             del file_tracks[key]
     return file_tracks
     
@@ -114,7 +118,8 @@ def _subtitle_check(file_tracks=None):
     for key, rec in file_tracks.items():
         if len(rec.subtitle) < 2:
             logger.critical(
-                '[{}] At least 1 subtitle track required'.format(rec.filename))
+                f'[{rec.filename}] At least 1 subtitle track required'
+            )
             del file_tracks[key]
     return file_tracks
 
@@ -125,8 +130,8 @@ def _build_args(langtype=None):
 
     for key, rec in file_to_tracks.items():
         logger.critical(
-            '[{}] Building CLI arguments for {} tracks'.format(
-                rec.filename, langtype))
+            f'[{rec.filename}] Building CLI arguments for {langtype} tracks'
+        )
         if 'audio' in langtype:
             lang = args.audio_language
             field = rec.audio
@@ -137,16 +142,18 @@ def _build_args(langtype=None):
         filterlang = list(filter(lambda a: a[1]==lang, field))
         if lang and len(filterlang) == 0:
             logger.critical(
-                '[{}] No {} tracks with language {} in {}'.format(
-                    rec.filename, langtype, lang, path))
+                f'[{rec.filename}] No {langtype} tracks with '
+                f'language {lang} in {path}'
+            )
             continue
         if len(filterlang) > 1:
             logger.critical(
-                '[{}] More than one {} track matching {}. Skipping'.format(
-                    rec.filename, langtype, lang))
+                f'[{rec.filename}] More than one {langtype} track '
+                f'matching {lang}. Skipping'
+            )
             continue
         if len(filterlang):
-            cmd = ["--{}-tracks".format(langtype),
+            cmd = [f'--{langtype}-tracks',
                     ",".join([str(a[0]) for a in filterlang])]
             for i in range(len(filterlang)):
                 cmd += ["--default-track"]
@@ -173,9 +180,7 @@ class MKVFile:
         self.root = root
 
     def __repr__(self):
-        return '{filename} {audio_args} {subtitle_args}'.format(
-            filename=self.filename, audio_args=self.audio_args,
-            subtitle_args=self.subtitle_args)
+        return f'{self.filename} {self.audio_args} {self.subtitle_args}'
 
 
 files = _get_file_list(root=args.input_directory)
@@ -207,7 +212,7 @@ if args.subtitle_language:
 
 for key, rec in file_to_tracks.items():
     if not rec.audio_args and not rec.subtitle_args:
-        logger.critical('[{}] No work to be done'.format(rec.filename))
+        logger.critical(f'[{rec.filename}] No work to be done')
         continue
 
     path = join(rec.root, rec.filename)
@@ -216,7 +221,7 @@ for key, rec in file_to_tracks.items():
     cmd += rec.audio_args
     cmd += rec.subtitle_args
     cmd += [path]
-    logger.critical('[{}] Processing ...'.format(rec.filename))
+    logger.critical(f'[{rec.filename}] Processing ...')
 
     mkvmerge = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     stdout, stderr = mkvmerge.communicate()
